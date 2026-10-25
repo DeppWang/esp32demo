@@ -39,6 +39,7 @@ static void frame(lv_timer_t *timer) {
    li_key(&state,k.key,k.event==BSP_BTN_LONG,now);redraw=true;
   }
  }
+ li_screen_set_minutes(&screen,state.progress.screen_minutes);
  li_screen_tick(&screen,now);
  if(was_off!=screen.off) bsp_display_backlight(screen.off?0:SCREEN_BRIGHTNESS);
  uint32_t before=state.serial;li_tick(&state,now);redraw|=before!=state.serial;
@@ -53,6 +54,7 @@ void app_main(void) {
  bool audio=bsp_audio_init()==ESP_OK;bool battery_ok=bsp_battery_init()==ESP_OK;
  li_progress_t p=li_runtime_start(audio);li_init(&state,&p,esp_random());state.voice_enabled=li_runtime_audio_ok();
  li_screen_init(&screen,(uint32_t)(esp_timer_get_time()/1000));
+ li_screen_set_minutes(&screen,state.progress.screen_minutes);
  keys=xQueueCreateStatic(16,sizeof(key_t),keys_buffer,&keys_control);
  if(bsp_lvgl_lock(2000)){li_ui_create(&state);lv_timer_create(frame,30,NULL);bsp_lvgl_unlock();}
  ESP_ERROR_CHECK(bsp_button_init(on_key,NULL));bsp_display_backlight(SCREEN_BRIGHTNESS);fap_screenshot_start();
