@@ -23,3 +23,16 @@ void li_audio_done(li_state_t *s, uint32_t serial, uint32_t now);
 unsigned li_mistakes(const li_state_t *s);
 unsigned li_heard(const li_state_t *s);
 uint16_t li_current(const li_state_t *s);
+
+/* Backlight policy, owned by the LVGL task. Audio never resets this timer. */
+#define LI_SCREEN_IDLE_MS (10u * 60u * 1000u)
+typedef struct {
+ uint32_t last_key;
+ bool off;
+ bool wake_only[3]; /* Ignore all follow-up events from a wake gesture. */
+} li_screen_t;
+void li_screen_init(li_screen_t *screen, uint32_t now);
+void li_screen_tick(li_screen_t *screen, uint32_t now);
+/* press=true for physical press; false for click, double-click, or long press.
+ * Returns true only when the event may perform its normal application action. */
+bool li_screen_key(li_screen_t *screen, unsigned key, bool press, uint32_t now);

@@ -30,6 +30,8 @@ Pure state lives in `main/apps/listening/listening_state.c`. Production LVGL UI 
 
 Generated speech is 16 kHz mono IMA ADPCM. Replays and listening/quiz modes reuse the same stored clip. One bank uses up to 1,600,000 bytes of application space; the second uses the added data partition at `0x360000`, size `0x3A0000`. The application remains below 3 MB. Identity at `0x356000`, Recovery at `0x700000`, and the five-second UP boot hook remain unchanged. The runtime checks resource CRC before enabling sound. The build gate checks exact resource inclusion in the merged image. The release manifest reports measured sizes and durations; this layout favors complete natural sentences and ample content over decorative bitmap assets.
 
+After 10 minutes without a function-key event, the backlight turns off while audio and the application continue. Press UP, DOWN, or OK to wake it. The wake gesture, including a long press, does not change the page or playback. The next press works as usual.
+
 Progress uses the dedicated `listen_island` NVS namespace, a versioned blob, range validation, and explicit save-error UI. Version 1 volume levels are migrated to five new levels (20/40/60/80/100, default 60), preserving listening records and stamps. NVS initialization failures never erase another application's records. Abrupt power loss before the queued save commits may lose the latest change. Missing audio blocks quiz submission; missing battery reads show a placeholder; no audio request marks a sentence heard until playback completes. Persistent services and the single screen live until power-off; no page deletion leaves a worker holding UI pointers. The optional runtime shutdown requests cancellation and exposes a worker exit acknowledgement.
 
 ## Build and verification

@@ -15,7 +15,7 @@ void li_init(li_state_t *s,const li_progress_t *p,uint32_t seed) {
    s->progress.volume=level*20;s->progress.version=LI_SAVE_VERSION;s->dirty=true;
   }
  }
- if(s->progress.volume<15 || s->progress.volume>75 || s->progress.volume%15) s->progress.volume=60;
+ if(s->progress.volume<20 || s->progress.volume>100 || s->progress.volume%20) s->progress.volume=60;
  if(s->progress.minutes!=5 && s->progress.minutes!=10 && s->progress.minutes!=15) s->progress.minutes=10;
  for(unsigned i=0;i<LI_COUNT;i++) { s->progress.mistakes[i]=s->progress.mistakes[i]?1:0; s->progress.heard[i]=s->progress.heard[i]?1:0; }
  for(unsigned i=0;i<LI_TOPICS;i++) if(s->progress.stamps[i]>3) s->progress.stamps[i]=0;
@@ -109,4 +109,20 @@ void li_audio_done(li_state_t *s,uint32_t serial,uint32_t now) {
  if(s->page!=LI_LISTEN && s->page!=LI_QUIZ && s->page!=LI_FEEDBACK) return;
  unsigned id=li_current(s);if(!s->progress.heard[id]) {s->progress.heard[id]=1;s->dirty=true;}
  if(s->page==LI_LISTEN && !s->paused) {s->waiting=true;s->wait_since=now;}
+}
+
+void li_screen_init(li_screen_t *screen,uint32_t now) {
+ *screen=(li_screen_t){.last_key=now};
+}
+void li_screen_tick(li_screen_t *screen,uint32_t now) {
+ if(now-screen->last_key>=LI_SCREEN_IDLE_MS) screen->off=true;
+}
+bool li_screen_key(li_screen_t *screen,unsigned key,bool press,uint32_t now) {
+ if(key>=3) return false;
+ li_screen_tick(screen,now);
+ bool waking=screen->off;
+ screen->off=false;screen->last_key=now;
+ if(press) screen->wake_only[key]=waking;
+ else if(waking) screen->wake_only[key]=true;
+ return !press && !screen->wake_only[key];
 }

@@ -32,5 +32,50 @@ int main(void){
  s.page=LI_SETTINGS;s.setting=0;for(unsigned i=0;i<5;i++)li_key(&s,2,false,i);assert(s.progress.volume==60);
  li_state_t again;li_init(&again,&s.progress,1);assert(again.progress.volume==60&&!again.dirty);
  init(&s);start(&s,0);s.started=UINT32_MAX-100;li_tick(&s,400);assert(s.page==LI_LISTEN);li_audio_done(&s,s.serial,UINT32_MAX-100);li_tick(&s,2500);assert(s.pos==1);
- puts("Listening state: PASS (shuffle, marks, pause, timer, cancellation, corrupt saves, wraparound)");
+ /* Every current volume survives loading, including after a settings change. */
+ for(unsigned level=20;level<=100;level+=20){
+  li_progress_t p={.version=LI_SAVE_VERSION,.volume=level,.minutes=10};
+  li_init(&s,&p,1);assert(s.progress.volume==level&&!s.dirty);
+  s.page=LI_SETTINGS;li_key(&s,2,false,0);
+  li_init(&again,&s.progress,1);assert(again.progress.volume==s.progress.volume);
+ }
+ for(unsigned level=15;level<=75;level+=15){
+  li_progress_t p={.version=1,.volume=level,.minutes=10};
+  li_init(&s,&p,1);assert(s.progress.volume==level/15*20&&s.dirty);
+ }
+ unsigned bad[]={0,15,30,75,101,255};
+ for(unsigned i=0;i<sizeof(bad)/sizeof(bad[0]);i++){
+  li_progress_t p={.version=LI_SAVE_VERSION,.volume=bad[i],.minutes=10};
+  li_init(&s,&p,1);assert(s.progress.volume==60);
+ }
+ /* Idle timeout, wake-only gestures, normal next press, and clock wrap. */
+ for(unsigned key=0;key<3;key++){
+  li_screen_t screen;li_screen_init(&screen,100);
+  li_screen_tick(&screen,100+LI_SCREEN_IDLE_MS-1);assert(!screen.off);
+  li_screen_tick(&screen,100+LI_SCREEN_IDLE_MS);assert(screen.off);
+  init(&s);s.menu=4;uint32_t serial=s.serial;
+  assert(!li_screen_key(&screen,key,true,600101));assert(!screen.off);
+  if(li_screen_key(&screen,key,false,600102))li_key(&s,key,true,600102);
+  if(li_screen_key(&screen,key,false,600103))li_key(&s,key,false,600103);
+  assert(s.page==LI_HOME&&s.menu==4&&s.serial==serial);
+  assert(!li_screen_key(&screen,key,true,600200));
+  assert(li_screen_key(&screen,key,false,600201));
+  li_screen_tick(&screen,600201+LI_SCREEN_IDLE_MS-1);assert(!screen.off);
+  li_screen_tick(&screen,600201+LI_SCREEN_IDLE_MS);assert(screen.off);
+ }
+ /* An ordinary press restarts the full timeout and keeps its normal action. */
+ li_screen_t screen;li_screen_init(&screen,0);
+ assert(!li_screen_key(&screen,0,true,LI_SCREEN_IDLE_MS-1));
+ assert(li_screen_key(&screen,0,false,LI_SCREEN_IDLE_MS));
+ li_screen_tick(&screen,2*LI_SCREEN_IDLE_MS-1);assert(!screen.off);
+ li_screen_tick(&screen,2*LI_SCREEN_IDLE_MS);assert(screen.off);
+ /* If a press event is lost, its action still only wakes the screen. */
+ assert(!li_screen_key(&screen,2,false,2*LI_SCREEN_IDLE_MS+1));assert(!screen.off);
+ li_screen_init(&screen,UINT32_MAX-100);
+ li_screen_tick(&screen,LI_SCREEN_IDLE_MS-102);assert(!screen.off);
+ li_screen_tick(&screen,LI_SCREEN_IDLE_MS-101);assert(screen.off);
+ /* Playback still advances while the screen is off. */
+ init(&s);start(&s,0);li_audio_done(&s,s.serial,0);li_tick(&s,2500);
+ assert(screen.off&&s.pos==1);
+ puts("Listening state: PASS (shuffle, marks, pause, timer, cancellation, volume reload/migration, screen timeout/wake, corrupt saves, wraparound)");
 }
